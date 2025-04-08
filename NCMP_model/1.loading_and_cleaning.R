@@ -30,10 +30,10 @@ source("NCMP_prevelance_model/NCMP_model/0.pipeline_development.R")
 #Change me
 
 
-school_year <- "R"
+school_year <- "6"
 ncmp_years <- c(202324, 202223, 202122)
 sample_n <- 10000
-deprivation <- 1
+deprivation <- 5
 
 ncmp_data <- run_ncmp_pipeline(con, ncmp_years, school_year, sample_n, deprivation)
 

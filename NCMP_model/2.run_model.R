@@ -4,7 +4,7 @@
 
 
 setwd("Z:/IA_NCMP/")
-source("NCMP_prevelance_model/NCMP_model/0.functions.R") 
+source("NCMP_prevelance_model/NCMP_model/0.pipeline_development.R") 
 source("NCMP_prevelance_model/NCMP_model/1.loading_and_cleaning.R") 
 
 
@@ -12,13 +12,21 @@ source("NCMP_prevelance_model/NCMP_model/1.loading_and_cleaning.R")
 #### SECTION 1 - PARAMETERS #####
 #################################
 #Look in "1.loading_and_cleaning.R" to decide year group, survey years and sample size.
-school_group <- "R"  # Either "6" or "R"
+school_group <- "6"  # Either "6" or "R"
 bmi_targetting <- 0
 num_targetting <- 100
 proportion_in_target <- num_targetting / 100
 
 
-data <- get_school_group_data(school_group) # see 0.functions.R
+# Pull data dynamically using pipeline
+data <- run_ncmp_pipeline(
+  con = con,
+  ncmp_years = c(202324, 202223, 202122),  # or your chosen years
+  school_year = school_group,
+  sample_n = 10000,
+  deprivation = 5                        # or NULL
+)
+# see 0.functions.R
 
 # Get indices and sample size of the target group
 target <- get_target_sample(data, bmi_targetting = bmi_targetting, proportion = proportion_in_target)
@@ -164,14 +172,15 @@ apply_kcal_reduction <- function(data, kcal_reduction) {
 ###########################################################################
 ###########################################################################
 
-new_obesity_rate <- function(kcal, weighted=T) {
+new_obesity_rate <- function(data, kcal, weighted = TRUE) {
   data %>%
-    obese_and_bmi %>% # CALCULATE THE OBESITY CATS AND CURRENT BMIs
-    add_num %>% # NUMBER THE TARGETTED BMI CATS
-    apply_kcal_reduction(kcal) %>% # apply henry equations with kcal reduction to calculate new weight
-    obesity_rate(weighted) %>% # calculate new obesity rate
+    obese_and_bmi() %>%
+    add_num() %>%
+    apply_kcal_reduction(kcal) %>%
+    obesity_rate(weighted) %>%
     mutate(kcal = kcal)
 }
+
 
 #################################################################
 #################################################################
@@ -186,9 +195,13 @@ inputs <- c(seq(0,500, by = 1)) # kcal reductions to apply
 inputs <- c(inputs, -inputs) %>% # add calorie decreases as well as increases
   unique()
 
-future_map_dfr(inputs, new_obesity_rate, .progress = TRUE) %>%
-  write_csv(sprintf("NCMP_prevelance_model/NCMP_model/outputs/year%s_targeted_%dpct_bmi_gt_%d_sample_%d.csv",
-                    school_group, num_targetting, bmi_targetting, sample_size))
+results <- future_map_dfr(inputs, ~new_obesity_rate(data, .x), .progress = TRUE)
+
+write_csv(
+  results,
+  sprintf("NCMP_prevelance_model/NCMP_model/outputs/year%s_targeted_%dpct_bmi_gt_%d_sample_%d_deprivation_%d.csv",
+          school_group, num_targetting, bmi_targetting, sample_size, deprivation)
+)
 
 
 if(sample_size<=100){

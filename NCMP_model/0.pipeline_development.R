@@ -1,10 +1,9 @@
 run_ncmp_pipeline <- function(con, ncmp_years, school_year = "6", sample_n = 10000, deprivation = NULL) {
-  # Load and combine raw data
+  
   raw_data <- purrr::map_dfr(ncmp_years, function(year) {
     get_clean_pupil_data(con, year, school_years = school_year, sample_n = sample_n, deprivation = deprivation)
   })
   
-  # Clean and process
   cleaned <- raw_data %>%
     dplyr::rename_all(tolower) %>%
     dplyr::select(ageinmonths, gendercode, height, weight, bmizscore) %>%
@@ -14,7 +13,6 @@ run_ncmp_pipeline <- function(con, ncmp_years, school_year = "6", sample_n = 100
   return(cleaned)
 }
 
-# --- Core Functions ---
 
 get_clean_pupil_data <- function(con, ncmp_year, school_years = c("6"), sample_n = 10000, deprivation = NULL) {
   school_years_sql <- paste0("'", school_years, "'", collapse = ", ")
